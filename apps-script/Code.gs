@@ -68,7 +68,11 @@ function doPost(e) {
   try {
     var body = {};
     if (e && e.postData && e.postData.contents) {
-      body = JSON.parse(e.postData.contents);
+      try {
+        body = JSON.parse(e.postData.contents);
+      } catch (parseErr) {
+        return errorResponse('Invalid JSON payload: ' + parseErr.message, 400);
+      }
     }
 
     var action = body.action || (e && e.parameter && e.parameter.action) || '';

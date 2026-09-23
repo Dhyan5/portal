@@ -98,28 +98,44 @@ function login(username, password) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('Admins');
 
+  // Auto-create Admins sheet if missing
   if (!sheet) {
-    return { success: false, message: 'Admins sheet not found. Run setupSheets() first.' };
+    sheet = ss.insertSheet('Admins');
+    var adminHeaders = ['id', 'username', 'password_hash'];
+    sheet.getRange(1, 1, 1, adminHeaders.length).setValues([adminHeaders]);
   }
 
   var data = sheet.getDataRange().getValues();
+
+  // If table has only headers or is empty, auto-create default admin (admin / 1234)
+  if (data.length <= 1) {
+    var defaultId = Utilities.getUuid();
+    var defaultHash = hashPassword('1234');
+    sheet.appendRow([defaultId, 'admin', defaultHash]);
+    data = sheet.getDataRange().getValues();
+  }
+
   var headers = data[0];
   var usernameCol = headers.indexOf('username');
   var passwordCol = headers.indexOf('password_hash');
 
   if (usernameCol === -1 || passwordCol === -1) {
-    return { success: false, message: 'Admins sheet schema error' };
+    return { success: false, message: 'Admins sheet schema error. Ensure headers are: id, username, password_hash' };
   }
 
-  var inputHash = hashPassword(password);
+  var inputHash = hashPassword(String(password).trim());
+  var targetUsername = String(username).trim();
 
   for (var i = 1; i < data.length; i++) {
-    if (data[i][usernameCol] === username && data[i][passwordCol] === inputHash) {
-      var token = generateToken(username);
+    var storedUsername = String(data[i][usernameCol]).trim();
+    var storedHash = String(data[i][passwordCol]).trim();
+
+    if (storedUsername === targetUsername && storedHash === inputHash) {
+      var token = generateToken(targetUsername);
       return {
         success: true,
         token: token,
-        username: username
+        username: targetUsername
       };
     }
   }
